@@ -9,6 +9,8 @@
 #include "Propidl.h"
 #include "Functiondiscoverykeys_devpkey.h"
 
+#define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws\n"
+
 HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID)
 {	
 	IPolicyConfigVista *pPolicyConfig;
@@ -70,7 +72,7 @@ int _tmain(int argc, _TCHAR* argv[])
 									{
 										// if no options, print the device
 										// otherwise, find the selected device and set it to be default
-										if (option == -1) printf("Audio Device %d: %ws\n",i, friendlyName.pwszVal);
+										if (option == -1) printf(DEVICE_OUTPUT_FORMAT,i, friendlyName.pwszVal);
 										if (i == option) SetDefaultAudioPlaybackDevice(wstrID);
 										PropVariantClear(&friendlyName);
 									}
