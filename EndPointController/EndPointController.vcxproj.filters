@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
+    <None Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PolicyConfig.h">
