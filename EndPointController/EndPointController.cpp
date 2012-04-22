@@ -74,7 +74,7 @@ void enumerateOutputDevices(TGlobalState* state)
 	UINT count;
 	state->pDevices->GetCount(&count);
 
-	for (int i = 0; i < (int)count; i++)
+	for (int i = 1; i <= (int)count; i++)
 	{
 		state->hr = state->pDevices->Item(i, &state->pCurrentDevice);
 		if (SUCCEEDED(state->hr))
