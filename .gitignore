@@ -2,3 +2,4 @@ Debug
 EndPointController/Debug
 EndPointController/Release
 ipch
+*.sdf
