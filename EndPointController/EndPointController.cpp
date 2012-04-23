@@ -98,26 +98,46 @@ void enumerateOutputDevices(TGlobalState* state)
 	UINT count;
 	state->pDevices->GetCount(&count);
 
-	for (int i = 1; i <= (int)count; i++)
+	// If option is less than 1, list devices
+	if (state->option < 1) 
 	{
-		state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
+
+		for (int i = 1; i <= (int)count; i++)
+		{
+			state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
+			if (SUCCEEDED(state->hr))
+			{
+				TCHAR* strID = NULL;
+				state->hr = state->pCurrentDevice->GetId(&strID);
+				if (SUCCEEDED(state->hr))
+				{
+					state->hr = printDeviceInfo(state->pCurrentDevice, i);
+				}
+				state->pCurrentDevice->Release();
+			}
+		}
+	}
+	// If option corresponds with the index of an audio device, set it to default
+	else if (state->option <= (int)count)
+	{
+		state->hr = state->pDevices->Item(state->option - 1, &state->pCurrentDevice);
 		if (SUCCEEDED(state->hr))
 		{
 			TCHAR* strID = NULL;
 			state->hr = state->pCurrentDevice->GetId(&strID);
 			if (SUCCEEDED(state->hr))
 			{
-				// if no options, print the device
-				// otherwise, find the selected device and set it to be default
-				if (state->option == 0) {
-					state->hr = printDeviceInfo(state->pCurrentDevice, i);
-				} else if (i == state->option) {
-					state->hr = SetDefaultAudioPlaybackDevice(strID);
-				}
+				state->hr = SetDefaultAudioPlaybackDevice(strID);
 			}
 			state->pCurrentDevice->Release();
 		}
 	}
+	// Otherwise inform user than option doesn't correspond with a device
+	else
+	{
+		printf("Error: No audio end-point device with the index '%d%'\n", state->option);
+	}
+	
 	state->pDevices->Release();
 }
 
