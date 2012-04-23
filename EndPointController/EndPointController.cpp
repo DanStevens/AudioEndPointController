@@ -33,35 +33,33 @@ HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
 int _tmain(int argc, _TCHAR* argv[])
 {
 	TGlobalState state;
-	int t;
 
 	// Process command line arguments
 	state.option = 0; // 0 indicates list devices.
 	if (argc > 1) 
 	{
-		t = strcoll((char*)argv[1], "--help");
-		if (t == 0)
+		if (_tcscmp(argv[1], _T("--help")) == 0)
 		{
 			printf("Lists audio end-point devices or sets default audio end-point device.\n\n");
-			printf("Usage:\n");
+			printf("USAGE\n");
 			printf("  EndPointController.exe [-f format_str]  Lists audio end-point devices that\n");
 			printf("                                          are enabled.\n");
 			printf("  EndPointController.exe device_index     Sets the default device with the\n");
 			printf("                                          given index.\n");
 			printf("\n");
-			printf("Options:\n");
+			printf("OPTIONS\n");
 			printf("  -f format_str  Outputs the details of each device using the given format\n");
 			printf("                 string. If this parameter is ommitted the format string\n");
 			printf("                 defaults to: \"%s\"\n\n", DEVICE_OUTPUT_FORMAT);
 			printf("                 Parameters that are passed to the 'printf' function are\n");
 			printf("                 ordered as follows:\n");
-			printf("                   - Device index\n");
-			printf("                   - Device friendly name\n");
+			printf("                   - Device index (int)\n");
+			printf("                   - Device friendly name (string)\n");
 			exit(0);
 		}
 	}
 	
-	if (argc == 2) state.option = atoi((char*)argv[1]);
+	if (argc == 2) state.option = _ttoi(argv[1]);
 
 	state.hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (SUCCEEDED(state.hr))
@@ -102,11 +100,11 @@ void enumerateOutputDevices(TGlobalState* state)
 
 	for (int i = 1; i <= (int)count; i++)
 	{
-		state->hr = state->pDevices->Item(i, &state->pCurrentDevice);
+		state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
 		if (SUCCEEDED(state->hr))
 		{
-			LPWSTR wstrID = NULL;
-			state->hr = state->pCurrentDevice->GetId(&wstrID);
+			TCHAR* strID = NULL;
+			state->hr = state->pCurrentDevice->GetId(&strID);
 			if (SUCCEEDED(state->hr))
 			{
 				// if no options, print the device
@@ -114,7 +112,7 @@ void enumerateOutputDevices(TGlobalState* state)
 				if (state->option == 0) {
 					state->hr = printDeviceInfo(state->pCurrentDevice, i);
 				} else if (i == state->option) {
-					state->hr = SetDefaultAudioPlaybackDevice(wstrID);
+					state->hr = SetDefaultAudioPlaybackDevice(strID);
 				}
 			}
 			state->pCurrentDevice->Release();
