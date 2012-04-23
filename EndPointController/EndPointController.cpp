@@ -11,7 +11,7 @@
 
 // Format string for outputing a device entry. The following parameters will be used in the following order:
 // Index, Device Friendly Name
-#define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws\n"
+#define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws"
 
 typedef struct TGlobalState
 {
@@ -20,6 +20,7 @@ typedef struct TGlobalState
 	IMMDeviceEnumerator *pEnum;
 	IMMDeviceCollection *pDevices;
 	IMMDevice *pCurrentDevice;
+	TCHAR* pDeviceFormatStr;
 } TGlobalState;
 
 void createDeviceEnumerator(TGlobalState* state);
@@ -32,9 +33,34 @@ HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
 int _tmain(int argc, _TCHAR* argv[])
 {
 	TGlobalState state;
+	int t;
+
+	// Process command line arguments
+	state.option = 0; // 0 indicates list devices.
+	if (argc > 1) 
+	{
+		t = strcoll((char*)argv[1], "--help");
+		if (t == 0)
+		{
+			printf("Lists audio end-point devices or sets default audio end-point device.\n\n");
+			printf("Usage:\n");
+			printf("  EndPointController.exe [-f format_str]  Lists audio end-point devices that\n");
+			printf("                                          are enabled.\n");
+			printf("  EndPointController.exe device_index     Sets the default device with the\n");
+			printf("                                          given index.\n");
+			printf("\n");
+			printf("Options:\n");
+			printf("  -f format_str  Outputs the details of each device using the given format\n");
+			printf("                 string. If this parameter is ommitted the format string\n");
+			printf("                 defaults to: \"%s\"\n\n", DEVICE_OUTPUT_FORMAT);
+			printf("                 Parameters that are passed to the 'printf' function are\n");
+			printf("                 ordered as follows:\n");
+			printf("                   - Device index\n");
+			printf("                   - Device friendly name\n");
+			exit(0);
+		}
+	}
 	
-	// read the command line option, -1 indicates list devices.
-	state.option = -1;
 	if (argc == 2) state.option = atoi((char*)argv[1]);
 
 	state.hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -85,7 +111,7 @@ void enumerateOutputDevices(TGlobalState* state)
 			{
 				// if no options, print the device
 				// otherwise, find the selected device and set it to be default
-				if (state->option == -1) {
+				if (state->option == 0) {
 					state->hr = printDeviceInfo(state->pCurrentDevice, i);
 				} else if (i == state->option) {
 					state->hr = SetDefaultAudioPlaybackDevice(wstrID);
@@ -110,6 +136,7 @@ HRESULT printDeviceInfo(IMMDevice* pDevice, int index)
 		if (SUCCEEDED(hr))
 		{
 			printf(DEVICE_OUTPUT_FORMAT, index, friendlyName.pwszVal);
+			printf("\n");
 			PropVariantClear(&friendlyName);
 		}
 		pStore->Release();
