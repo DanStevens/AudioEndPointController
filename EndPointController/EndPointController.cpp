@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <tchar.h>
+#include <string>
+#include <iostream>
 #include "windows.h"
 #include "Mmdeviceapi.h"
 #include "PolicyConfig.h"
@@ -28,7 +30,10 @@ void createDeviceEnumerator(TGlobalState* state);
 void prepareDeviceEnumerator(TGlobalState* state);
 void enumerateOutputDevices(TGlobalState* state);
 HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat);
+std::wstring getDeviceProperty(IPropertyStore* pStore, const PROPERTYKEY key);
 HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
+void invalidParameterHandler(const wchar_t* expression, const wchar_t* function, const wchar_t* file, 
+	unsigned int line, uintptr_t pReserved);
 
 // EndPointController.exe [NewDefaultDeviceID]
 int _tmain(int argc, LPCWSTR argv[])
@@ -58,7 +63,11 @@ int _tmain(int argc, LPCWSTR argv[])
 			wprintf_s(_T("                 Parameters that are passed to the 'printf' function are\n"));
 			wprintf_s(_T("                 ordered as follows:\n"));
 			wprintf_s(_T("                   - Device index (int)\n"));
-			wprintf_s(_T("                   - Device friendly name (string)\n"));
+			wprintf_s(_T("                   - Device friendly name (wstring)\n"));
+			wprintf_s(_T("                   - Device state (int)\n"));
+			wprintf_s(_T("                   - Device description (wstring)\n"));
+			wprintf_s(_T("                   - Device interface friendly name (wstring)\n"));
+			wprintf_s(_T("                   - Device ID (wstring)\n"));
 			exit(0);
 		}
 		else if (wcscmp(argv[i], _T("-a")) == 0)
@@ -68,8 +77,12 @@ int _tmain(int argc, LPCWSTR argv[])
 		}
 		else if (wcscmp(argv[i], _T("-f")) == 0)
 		{
-			if ((argc -i) >= 2) {
+			if ((argc - i) >= 2) {
 				state.pDeviceFormatStr = argv[++i];
+				
+				// If printf is called with an invalid format string, jump to the invalidParameterHandler function.
+				_set_invalid_parameter_handler(invalidParameterHandler);
+				_CrtSetReportMode(_CRT_ASSERT, 0);
 				continue;
 			}
 			else
@@ -128,12 +141,7 @@ void enumerateOutputDevices(TGlobalState* state)
 			state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
 			if (SUCCEEDED(state->hr))
 			{
-				TCHAR* strID = NULL;
-				state->hr = state->pCurrentDevice->GetId(&strID);
-				if (SUCCEEDED(state->hr))
-				{
-					state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr);
-				}
+				state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr);
 				state->pCurrentDevice->Release();
 			}
 		}
@@ -144,7 +152,7 @@ void enumerateOutputDevices(TGlobalState* state)
 		state->hr = state->pDevices->Item(state->option - 1, &state->pCurrentDevice);
 		if (SUCCEEDED(state->hr))
 		{
-			TCHAR* strID = NULL;
+			LPWSTR strID = NULL;
 			state->hr = state->pCurrentDevice->GetId(&strID);
 			if (SUCCEEDED(state->hr))
 			{
@@ -164,23 +172,63 @@ void enumerateOutputDevices(TGlobalState* state)
 
 HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat)
 {
-	IPropertyStore *pStore;
-	HRESULT hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
+	// Device ID
+	LPWSTR strID = NULL;
+	HRESULT hr = pDevice->GetId(&strID);
+	if (!SUCCEEDED(hr))
+	{
+		return hr;
+	}
 
+	// Device state
+	DWORD dwState;
+	hr = pDevice->GetState(&dwState);
+	if (!SUCCEEDED(hr))
+	{
+		return hr;
+	}
+		
+	IPropertyStore *pStore;
+	hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
 	if (SUCCEEDED(hr))
 	{
-		PROPVARIANT friendlyName;
-		PropVariantInit(&friendlyName);
-		hr = pStore->GetValue(PKEY_Device_FriendlyName, &friendlyName);
+		std::wstring friendlyName = getDeviceProperty(pStore, PKEY_Device_FriendlyName);
+		std::wstring Desc = getDeviceProperty(pStore, PKEY_Device_DeviceDesc);
+		std::wstring interfaceFriendlyName = getDeviceProperty(pStore, PKEY_DeviceInterface_FriendlyName);
+		
 		if (SUCCEEDED(hr))
 		{
-			wprintf_s(outFormat, index, friendlyName.pwszVal);
+			wprintf_s(outFormat,
+				index,
+				friendlyName.c_str(),
+				dwState,
+				Desc.c_str(),
+				interfaceFriendlyName.c_str(),
+				strID
+			);
 			wprintf_s(_T("\n"));
-			PropVariantClear(&friendlyName);
 		}
+
 		pStore->Release();
 	}
 	return hr;
+}
+
+std::wstring getDeviceProperty(IPropertyStore* pStore, const PROPERTYKEY key)
+{
+	PROPVARIANT prop;
+	PropVariantInit(&prop);
+	HRESULT hr = pStore->GetValue(key, &prop);
+	if (SUCCEEDED(hr))
+	{
+		std::wstring result (prop.pwszVal);
+		PropVariantClear(&prop);
+		return result;
+	}
+	else
+	{
+		return std::wstring (L"");
+	}
 }
 
 HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID)
@@ -196,4 +244,14 @@ HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID)
 		pPolicyConfig->Release();
 	}
 	return hr;
+}
+
+void invalidParameterHandler(const wchar_t* expression,
+   const wchar_t* function, 
+   const wchar_t* file, 
+   unsigned int line, 
+   uintptr_t pReserved)
+{
+   wprintf_s(_T("\nError: Invalid format_str.\n"));
+   exit(1);
 }
