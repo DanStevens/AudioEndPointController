@@ -9,7 +9,7 @@
 #include "Propidl.h"
 #include "Functiondiscoverykeys_devpkey.h"
 
-// Format string for outputing a device entry. The following parameters will be used in the following order:
+// Format default string for outputing a device entry. The following parameters will be used in the following order:
 // Index, Device Friendly Name
 #define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws"
 
@@ -20,46 +20,67 @@ typedef struct TGlobalState
 	IMMDeviceEnumerator *pEnum;
 	IMMDeviceCollection *pDevices;
 	IMMDevice *pCurrentDevice;
-	TCHAR* pDeviceFormatStr;
+	LPCWSTR pDeviceFormatStr;
+	int deviceStateFilter;
 } TGlobalState;
 
 void createDeviceEnumerator(TGlobalState* state);
 void prepareDeviceEnumerator(TGlobalState* state);
 void enumerateOutputDevices(TGlobalState* state);
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index);
+HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat);
 HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
 
 // EndPointController.exe [NewDefaultDeviceID]
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int argc, LPCWSTR argv[])
 {
 	TGlobalState state;
 
 	// Process command line arguments
 	state.option = 0; // 0 indicates list devices.
-	if (argc > 1) 
+	state.pDeviceFormatStr = _T(DEVICE_OUTPUT_FORMAT);
+	state.deviceStateFilter = DEVICE_STATE_ACTIVE;
+	for (int i = 1; i < argc; i++) 
 	{
-		if (_tcscmp(argv[1], _T("--help")) == 0)
+		if (wcscmp(argv[i], _T("--help")) == 0)
 		{
-			printf("Lists audio end-point devices or sets default audio end-point device.\n\n");
-			printf("USAGE\n");
-			printf("  EndPointController.exe [-f format_str]  Lists audio end-point devices that\n");
-			printf("                                          are enabled.\n");
-			printf("  EndPointController.exe device_index     Sets the default device with the\n");
-			printf("                                          given index.\n");
-			printf("\n");
-			printf("OPTIONS\n");
-			printf("  -f format_str  Outputs the details of each device using the given format\n");
-			printf("                 string. If this parameter is ommitted the format string\n");
-			printf("                 defaults to: \"%s\"\n\n", DEVICE_OUTPUT_FORMAT);
-			printf("                 Parameters that are passed to the 'printf' function are\n");
-			printf("                 ordered as follows:\n");
-			printf("                   - Device index (int)\n");
-			printf("                   - Device friendly name (string)\n");
+			wprintf_s(_T("Lists active audio end-point devices or sets default audio end-point device.\n\n"));
+			wprintf_s(_T("USAGE\n"));
+			wprintf_s(_T("  EndPointController.exe [-a] [-f format_str]  Lists audio end-point devices that\n"));
+			wprintf_s(_T("                                          are enabled.\n"));
+			wprintf_s(_T("  EndPointController.exe device_index     Sets the default device with the\n"));
+			wprintf_s(_T("                                          given index.\n"));
+			wprintf_s(_T("\n"));
+			wprintf_s(_T("OPTIONS\n"));
+			wprintf_s(_T("  -a             Display all devices, rather than just active devices.\n"));
+			wprintf_s(_T("  -f format_str  Outputs the details of each device using the given format\n"));
+			wprintf_s(_T("                 string. If this parameter is ommitted the format string\n"));
+			wprintf_s(_T("                 defaults to: \"%s\"\n\n"), _T(DEVICE_OUTPUT_FORMAT));
+			wprintf_s(_T("                 Parameters that are passed to the 'printf' function are\n"));
+			wprintf_s(_T("                 ordered as follows:\n"));
+			wprintf_s(_T("                   - Device index (int)\n"));
+			wprintf_s(_T("                   - Device friendly name (string)\n"));
 			exit(0);
+		}
+		else if (wcscmp(argv[i], _T("-a")) == 0)
+		{
+			state.deviceStateFilter = DEVICE_STATEMASK_ALL;
+			continue;
+		}
+		else if (wcscmp(argv[i], _T("-f")) == 0)
+		{
+			if ((argc -i) >= 2) {
+				state.pDeviceFormatStr = argv[++i];
+				continue;
+			}
+			else
+			{
+				wprintf_s(_T("Missing format string"));
+				exit(1);
+			}
 		}
 	}
 	
-	if (argc == 2) state.option = _ttoi(argv[1]);
+	if (argc == 2) state.option = _wtoi(argv[1]);
 
 	state.hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (SUCCEEDED(state.hr))
@@ -84,7 +105,7 @@ void createDeviceEnumerator(TGlobalState* state)
 // Prepare the device enumerator
 void prepareDeviceEnumerator(TGlobalState* state)
 {
-	state->hr = state->pEnum->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &state->pDevices);
+	state->hr = state->pEnum->EnumAudioEndpoints(eRender, state->deviceStateFilter, &state->pDevices);
 	if SUCCEEDED(state->hr)
 	{
 		enumerateOutputDevices(state);
@@ -111,7 +132,7 @@ void enumerateOutputDevices(TGlobalState* state)
 				state->hr = state->pCurrentDevice->GetId(&strID);
 				if (SUCCEEDED(state->hr))
 				{
-					state->hr = printDeviceInfo(state->pCurrentDevice, i);
+					state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr);
 				}
 				state->pCurrentDevice->Release();
 			}
@@ -135,13 +156,13 @@ void enumerateOutputDevices(TGlobalState* state)
 	// Otherwise inform user than option doesn't correspond with a device
 	else
 	{
-		printf("Error: No audio end-point device with the index '%d%'\n", state->option);
+		wprintf_s(_T("Error: No audio end-point device with the index '%d'.\n"), state->option);
 	}
 	
 	state->pDevices->Release();
 }
 
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index)
+HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat)
 {
 	IPropertyStore *pStore;
 	HRESULT hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
@@ -153,8 +174,8 @@ HRESULT printDeviceInfo(IMMDevice* pDevice, int index)
 		hr = pStore->GetValue(PKEY_Device_FriendlyName, &friendlyName);
 		if (SUCCEEDED(hr))
 		{
-			printf(DEVICE_OUTPUT_FORMAT, index, friendlyName.pwszVal);
-			printf("\n");
+			wprintf_s(outFormat, index, friendlyName.pwszVal);
+			wprintf_s(_T("\n"));
 			PropVariantClear(&friendlyName);
 		}
 		pStore->Release();
