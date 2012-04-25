@@ -21,6 +21,7 @@ typedef struct TGlobalState
 	int option;
 	IMMDeviceEnumerator *pEnum;
 	IMMDeviceCollection *pDevices;
+	LPWSTR strDefaultDeviceID;
 	IMMDevice *pCurrentDevice;
 	LPCWSTR pDeviceFormatStr;
 	int deviceStateFilter;
@@ -29,7 +30,7 @@ typedef struct TGlobalState
 void createDeviceEnumerator(TGlobalState* state);
 void prepareDeviceEnumerator(TGlobalState* state);
 void enumerateOutputDevices(TGlobalState* state);
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat);
+HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat, LPWSTR strDefaultDeviceID);
 std::wstring getDeviceProperty(IPropertyStore* pStore, const PROPERTYKEY key);
 HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
 void invalidParameterHandler(const wchar_t* expression, const wchar_t* function, const wchar_t* file, 
@@ -42,18 +43,21 @@ int _tmain(int argc, LPCWSTR argv[])
 
 	// Process command line arguments
 	state.option = 0; // 0 indicates list devices.
+	state.strDefaultDeviceID = '\0';
 	state.pDeviceFormatStr = _T(DEVICE_OUTPUT_FORMAT);
 	state.deviceStateFilter = DEVICE_STATE_ACTIVE;
+
 	for (int i = 1; i < argc; i++) 
 	{
 		if (wcscmp(argv[i], _T("--help")) == 0)
 		{
-			wprintf_s(_T("Lists active audio end-point devices or sets default audio end-point device.\n\n"));
+			wprintf_s(_T("Lists active audio end-point playback devices or sets default audio end-point\n"));
+			wprintf_s(_T("playback device.\n\n"));
 			wprintf_s(_T("USAGE\n"));
-			wprintf_s(_T("  EndPointController.exe [-a] [-f format_str]  Lists audio end-point devices that\n"));
-			wprintf_s(_T("                                          are enabled.\n"));
-			wprintf_s(_T("  EndPointController.exe device_index     Sets the default device with the\n"));
-			wprintf_s(_T("                                          given index.\n"));
+			wprintf_s(_T("  EndPointController.exe [-a] [-f format_str]  Lists audio end-point playback\n"));
+			wprintf_s(_T("                                               devices that are enabled.\n"));
+			wprintf_s(_T("  EndPointController.exe device_index          Sets the default playvack device\n"));
+			wprintf_s(_T("                                               with the given index.\n"));
 			wprintf_s(_T("\n"));
 			wprintf_s(_T("OPTIONS\n"));
 			wprintf_s(_T("  -a             Display all devices, rather than just active devices.\n"));
@@ -65,6 +69,7 @@ int _tmain(int argc, LPCWSTR argv[])
 			wprintf_s(_T("                   - Device index (int)\n"));
 			wprintf_s(_T("                   - Device friendly name (wstring)\n"));
 			wprintf_s(_T("                   - Device state (int)\n"));
+			wprintf_s(_T("				     - Device default? (1 for true 0 for false as int)\n"));
 			wprintf_s(_T("                   - Device description (wstring)\n"));
 			wprintf_s(_T("                   - Device interface friendly name (wstring)\n"));
 			wprintf_s(_T("                   - Device ID (wstring)\n"));
@@ -136,13 +141,24 @@ void enumerateOutputDevices(TGlobalState* state)
 	if (state->option < 1) 
 	{
 
-		for (int i = 1; i <= (int)count; i++)
+		// Get default device
+		IMMDevice* pDefaultDevice;
+		state->hr = state->pEnum->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDefaultDevice);
+		if (SUCCEEDED(state->hr))
 		{
-			state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
-			if (SUCCEEDED(state->hr))
+			
+			state->hr = pDefaultDevice->GetId(&state->strDefaultDeviceID);
+
+			// Iterate all devices
+			for (int i = 1; i <= (int)count; i++)
 			{
-				state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr);
-				state->pCurrentDevice->Release();
+				state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
+				if (SUCCEEDED(state->hr))
+				{
+					state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr,
+						state->strDefaultDeviceID);
+					state->pCurrentDevice->Release();
+				}
 			}
 		}
 	}
@@ -170,7 +186,7 @@ void enumerateOutputDevices(TGlobalState* state)
 	state->pDevices->Release();
 }
 
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat)
+HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat, LPWSTR strDefaultDeviceID)
 {
 	// Device ID
 	LPWSTR strID = NULL;
@@ -179,6 +195,8 @@ HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat)
 	{
 		return hr;
 	}
+
+	int deviceDefault = (strDefaultDeviceID != '\0' && (wcscmp(strDefaultDeviceID, strID) == 0));
 
 	// Device state
 	DWORD dwState;
@@ -202,6 +220,7 @@ HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat)
 				index,
 				friendlyName.c_str(),
 				dwState,
+				deviceDefault,
 				Desc.c_str(),
 				interfaceFriendlyName.c_str(),
 				strID

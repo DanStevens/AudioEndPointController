@@ -78,14 +78,14 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)README.md" "$(SolutionDir)Release\"</Command>
+      <Command>copy "$(SolutionDir)README.md" "$(SolutionDir)Release\README"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Copy the README.md file to the Release directory</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="..\README.md" />
+    <None Include="..\Release\README" />
     <None Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>

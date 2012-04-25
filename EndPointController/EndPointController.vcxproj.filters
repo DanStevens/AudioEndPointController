@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE.txt" />
-    <None Include="..\README.md">
+    <None Include="..\Release\README">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
