@@ -10,7 +10,7 @@ A Windows command-line program for listing audio end-points and setting the defa
 	USAGE
 	  EndPointController.exe [-a] [-f format_str]  Lists audio end-point playback
 												   devices that are enabled.
-	  EndPointController.exe device_index          Sets the default playvack device
+	  EndPointController.exe device_index          Sets the default playback device
 												   with the given index.
 
 	OPTIONS
