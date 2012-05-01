@@ -26,7 +26,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EndPointController.cpp">
+    <ClCompile Include="AudioDeviceController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

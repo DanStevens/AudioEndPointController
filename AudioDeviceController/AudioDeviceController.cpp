@@ -1,4 +1,4 @@
-// EndPointController.cpp : Defines the entry point for the console application.
+// AudioDeviceController.cpp : Defines the entry point for the console application.
 //
 #include <stdio.h>
 #include <wchar.h>
@@ -36,7 +36,7 @@ HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
 void invalidParameterHandler(const wchar_t* expression, const wchar_t* function, const wchar_t* file, 
 	unsigned int line, uintptr_t pReserved);
 
-// EndPointController.exe [NewDefaultDeviceID]
+
 int _tmain(int argc, LPCWSTR argv[])
 {
 	TGlobalState state;

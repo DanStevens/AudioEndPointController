@@ -14,6 +14,7 @@
     <ProjectGuid>{CA6EA9FE-B049-490C-9203-E65DD13188C7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>EndPointController</RootNamespace>
+    <ProjectName>AudioDeviceController</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -92,7 +93,7 @@
     <ClInclude Include="PolicyConfig.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EndPointController.cpp" />
+    <ClCompile Include="AudioDeviceController.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
