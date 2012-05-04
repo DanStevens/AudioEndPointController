@@ -69,6 +69,26 @@ namespace AudioDeviceApi
 		return pDefaultDevice;
 	}
 
+	void AudioDeviceController::SetDefaultDevice(LPCWSTR deviceID, ERole role)
+	{
+			IPolicyConfigVista *pPolicyConfig;
+
+			testHResult(CoCreateInstance(__uuidof(CPolicyConfigVistaClient), 
+				NULL, CLSCTX_ALL, __uuidof(IPolicyConfigVista), (LPVOID *)&pPolicyConfig));
+			testHResult(pPolicyConfig->SetDefaultEndpoint(deviceID, role));
+			pPolicyConfig->Release();
+	}
+
+	void AudioDeviceController::SetDefaultDevice(AudioDevicePtr audioDevice, ERole role)
+	{
+		SetDefaultDevice(audioDevice->GetID(), role);
+	}
+
+	void AudioDeviceController::SetDefaultDevice(wstring deviceID, ERole role)
+	{
+		SetDefaultDevice(deviceID.c_str(), role);
+	}
+
 	IMMDeviceEnumerator* AudioDeviceController::getpDeviceEnum()
 	{
 		if (pDeviceEnum != NULL)

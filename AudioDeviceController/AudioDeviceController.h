@@ -38,6 +38,9 @@ namespace AudioDeviceApi
 		int GetCount();
 		AudioDeviceMapPtr GetDevices();
 		AudioDevicePtr GetDefaultDevice(ERole role = eMultimedia, EDataFlow dataFlow = (EDataFlow)0);
+		void SetDefaultDevice(AudioDevicePtr audioDevice, ERole role);
+		void SetDefaultDevice(wstring deviceID, ERole role);
+		void SetDefaultDevice(LPCWSTR deviceID, ERole role);
 
 		static bool testHResult(HRESULT hr)
 		{

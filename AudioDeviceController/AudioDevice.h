@@ -5,8 +5,6 @@
 #include <string>
 #include "windows.h"
 #include "Mmdeviceapi.h"
-
-
 #include "HResultFailException.h"
 
 using namespace std;
