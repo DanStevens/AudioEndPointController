@@ -1,276 +1,112 @@
-// AudioDeviceController.cpp : Defines the entry point for the console application.
-//
-#include <stdio.h>
-#include <wchar.h>
-#include <tchar.h>
-#include <string>
-#include <iostream>
+#include <map>
+#include "AudioDeviceController.h"
 #include "windows.h"
 #include "Mmdeviceapi.h"
 #include "PolicyConfig.h"
-#include "Propidl.h"
-#include "Functiondiscoverykeys_devpkey.h"
+#include "AudioDevice.h"
 
-// Format default string for outputing a device entry. The following parameters will be used in the following order:
-// Index, Device Friendly Name
-#define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws"
 
-typedef struct TGlobalState
+namespace AudioDeviceApi
 {
-	HRESULT hr;
-	int option;
-	IMMDeviceEnumerator *pEnum;
-	IMMDeviceCollection *pDevices;
-	LPWSTR strDefaultDeviceID;
-	IMMDevice *pCurrentDevice;
-	LPCWSTR pDeviceFormatStr;
-	int deviceStateFilter;
-} TGlobalState;
-
-void createDeviceEnumerator(TGlobalState* state);
-void prepareDeviceEnumerator(TGlobalState* state);
-void enumerateOutputDevices(TGlobalState* state);
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat, LPWSTR strDefaultDeviceID);
-std::wstring getDeviceProperty(IPropertyStore* pStore, const PROPERTYKEY key);
-HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID);
-void invalidParameterHandler(const wchar_t* expression, const wchar_t* function, const wchar_t* file, 
-	unsigned int line, uintptr_t pReserved);
-
-
-int _tmain(int argc, LPCWSTR argv[])
-{
-	TGlobalState state;
-
-	// Process command line arguments
-	state.option = 0; // 0 indicates list devices.
-	state.strDefaultDeviceID = '\0';
-	state.pDeviceFormatStr = _T(DEVICE_OUTPUT_FORMAT);
-	state.deviceStateFilter = DEVICE_STATE_ACTIVE;
-
-	for (int i = 1; i < argc; i++) 
-	{
-		if (wcscmp(argv[i], _T("--help")) == 0)
-		{
-			wprintf_s(_T("Lists active audio end-point playback devices or sets default audio end-point\n"));
-			wprintf_s(_T("playback device.\n\n"));
-			wprintf_s(_T("USAGE\n"));
-			wprintf_s(_T("  EndPointController.exe [-a] [-f format_str]  Lists audio end-point playback\n"));
-			wprintf_s(_T("                                               devices that are enabled.\n"));
-			wprintf_s(_T("  EndPointController.exe device_index          Sets the default playvack device\n"));
-			wprintf_s(_T("                                               with the given index.\n"));
-			wprintf_s(_T("\n"));
-			wprintf_s(_T("OPTIONS\n"));
-			wprintf_s(_T("  -a             Display all devices, rather than just active devices.\n"));
-			wprintf_s(_T("  -f format_str  Outputs the details of each device using the given format\n"));
-			wprintf_s(_T("                 string. If this parameter is ommitted the format string\n"));
-			wprintf_s(_T("                 defaults to: \"%s\"\n\n"), _T(DEVICE_OUTPUT_FORMAT));
-			wprintf_s(_T("                 Parameters that are passed to the 'printf' function are\n"));
-			wprintf_s(_T("                 ordered as follows:\n"));
-			wprintf_s(_T("                   - Device index (int)\n"));
-			wprintf_s(_T("                   - Device friendly name (wstring)\n"));
-			wprintf_s(_T("                   - Device state (int)\n"));
-			wprintf_s(_T("				     - Device default? (1 for true 0 for false as int)\n"));
-			wprintf_s(_T("                   - Device description (wstring)\n"));
-			wprintf_s(_T("                   - Device interface friendly name (wstring)\n"));
-			wprintf_s(_T("                   - Device ID (wstring)\n"));
-			exit(0);
-		}
-		else if (wcscmp(argv[i], _T("-a")) == 0)
-		{
-			state.deviceStateFilter = DEVICE_STATEMASK_ALL;
-			continue;
-		}
-		else if (wcscmp(argv[i], _T("-f")) == 0)
-		{
-			if ((argc - i) >= 2) {
-				state.pDeviceFormatStr = argv[++i];
-				
-				// If printf is called with an invalid format string, jump to the invalidParameterHandler function.
-				_set_invalid_parameter_handler(invalidParameterHandler);
-				_CrtSetReportMode(_CRT_ASSERT, 0);
-				continue;
-			}
-			else
-			{
-				wprintf_s(_T("Missing format string"));
-				exit(1);
-			}
-		}
-	}
 	
-	if (argc == 2) state.option = _wtoi(argv[1]);
-
-	state.hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-	if (SUCCEEDED(state.hr))
+	AudioDeviceController::AudioDeviceController(EDataFlow dataFlow, DWORD dwStateMask)
+		: pDeviceEnum(NULL), pDeviceCollection(NULL), dataFlow(dataFlow)
 	{
-		createDeviceEnumerator(&state);
+		testHResult(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED));
+
+		testHResult(CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
+			(void**)&pDeviceEnum));
+
+		testHResult(pDeviceEnum->EnumAudioEndpoints(dataFlow, dwStateMask, &pDeviceCollection));
 	}
-	return state.hr;
-}
 
-// Create a multimedia device enumerator.
-void createDeviceEnumerator(TGlobalState* state)
-{
-	state->pEnum = NULL;
-	state->hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
-		(void**)&state->pEnum);
-	if (SUCCEEDED(state->hr))
+	AudioDeviceController::~AudioDeviceController()
 	{
-		prepareDeviceEnumerator(state);
+		getpDeviceCollection()->Release();
+		getpDeviceEnum()->Release();
 	}
-}
 
-// Prepare the device enumerator
-void prepareDeviceEnumerator(TGlobalState* state)
-{
-	state->hr = state->pEnum->EnumAudioEndpoints(eRender, state->deviceStateFilter, &state->pDevices);
-	if SUCCEEDED(state->hr)
+	int AudioDeviceController::GetCount()
 	{
-		enumerateOutputDevices(state);
+		unsigned count;
+		getpDeviceCollection()->GetCount(&count);
+		return (int)count;
 	}
-	state->pEnum->Release();
-}
 
-// Enumerate the output devices
-void enumerateOutputDevices(TGlobalState* state)
-{
-	UINT count;
-	state->pDevices->GetCount(&count);
-
-	// If option is less than 1, list devices
-	if (state->option < 1) 
+	AudioDeviceMapPtr AudioDeviceController::GetDevices()
 	{
-
-		// Get default device
-		IMMDevice* pDefaultDevice;
-		state->hr = state->pEnum->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDefaultDevice);
-		if (SUCCEEDED(state->hr))
-		{
+		int count = GetCount();
+		pDeviceMap = AudioDeviceMapPtr(new AudioDeviceMap());
+		if (count > 0) {
 			
-			state->hr = pDefaultDevice->GetId(&state->strDefaultDeviceID);
-
-			// Iterate all devices
-			for (int i = 1; i <= (int)count; i++)
-			{
-				state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
-				if (SUCCEEDED(state->hr))
-				{
-					state->hr = printDeviceInfo(state->pCurrentDevice, i, state->pDeviceFormatStr,
-						state->strDefaultDeviceID);
-					state->pCurrentDevice->Release();
-				}
+			for (int i = 0; i < count; i++) {
+				IMMDevice* pDevice;
+				testHResult(pDeviceCollection->Item(i, &pDevice));
+				AudioDevicePtr audioDevice(new AudioDevice(pDevice, DataFlow2DeviceType(dataFlow)));
+				(*pDeviceMap)[audioDevice->GetID()] = audioDevice;
+				//IDAudioDevicePair* pair = new IDAudioDevicePair(audioDevice->GetID(), audioDevice);
+				//pDeviceMap->insert(*pair);
+				pDevice->Release();
 			}
+			
 		}
-	}
-	// If option corresponds with the index of an audio device, set it to default
-	else if (state->option <= (int)count)
-	{
-		state->hr = state->pDevices->Item(state->option - 1, &state->pCurrentDevice);
-		if (SUCCEEDED(state->hr))
-		{
-			LPWSTR strID = NULL;
-			state->hr = state->pCurrentDevice->GetId(&strID);
-			if (SUCCEEDED(state->hr))
-			{
-				state->hr = SetDefaultAudioPlaybackDevice(strID);
-			}
-			state->pCurrentDevice->Release();
-		}
-	}
-	// Otherwise inform user than option doesn't correspond with a device
-	else
-	{
-		wprintf_s(_T("Error: No audio end-point device with the index '%d'.\n"), state->option);
-	}
-	
-	state->pDevices->Release();
-}
-
-HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat, LPWSTR strDefaultDeviceID)
-{
-	// Device ID
-	LPWSTR strID = NULL;
-	HRESULT hr = pDevice->GetId(&strID);
-	if (!SUCCEEDED(hr))
-	{
-		return hr;
+		return pDeviceMap;
 	}
 
-	int deviceDefault = (strDefaultDeviceID != '\0' && (wcscmp(strDefaultDeviceID, strID) == 0));
-
-	// Device state
-	DWORD dwState;
-	hr = pDevice->GetState(&dwState);
-	if (!SUCCEEDED(hr))
-	{
-		return hr;
-	}
+	AudioDevicePtr AudioDeviceController::GetDefaultDevice(ERole role /*= eMultimedia */, EDataFlow dataFlow /*= 0 */)
+	{		
+		// Use parameter for dataFlow, unless it is zero, in which case use object's dataflow
+		EDataFlow df = ((int)dataFlow) ? dataFlow : this->dataFlow;
 		
-	IPropertyStore *pStore;
-	hr = pDevice->OpenPropertyStore(STGM_READ, &pStore);
-	if (SUCCEEDED(hr))
-	{
-		std::wstring friendlyName = getDeviceProperty(pStore, PKEY_Device_FriendlyName);
-		std::wstring Desc = getDeviceProperty(pStore, PKEY_Device_DeviceDesc);
-		std::wstring interfaceFriendlyName = getDeviceProperty(pStore, PKEY_DeviceInterface_FriendlyName);
+		// A dataFlow of 'eAll' is invalid, so assume 'eRender' if this has been specified.
+		df = (df == eAll) ? eRender : df;
 		
-		if (SUCCEEDED(hr))
+		IMMDevice* pDevice;
+		testHResult(getpDeviceEnum()->GetDefaultAudioEndpoint(dataFlow, role, &pDevice));
+
+		pDefaultDevice = AudioDevicePtr(new AudioDevice(pDevice, (DeviceType::Enum) dataFlow));
+		pDevice->Release();
+		return pDefaultDevice;
+	}
+
+	IMMDeviceEnumerator* AudioDeviceController::getpDeviceEnum()
+	{
+		if (pDeviceEnum != NULL)
 		{
-			wprintf_s(outFormat,
-				index,
-				friendlyName.c_str(),
-				dwState,
-				deviceDefault,
-				Desc.c_str(),
-				interfaceFriendlyName.c_str(),
-				strID
-			);
-			wprintf_s(_T("\n"));
+			return pDeviceEnum;
+		} else {
+			throw Exception("pDeviceEnum was NULL");
 		}
-
-		pStore->Release();
 	}
-	return hr;
-}
 
-std::wstring getDeviceProperty(IPropertyStore* pStore, const PROPERTYKEY key)
-{
-	PROPVARIANT prop;
-	PropVariantInit(&prop);
-	HRESULT hr = pStore->GetValue(key, &prop);
-	if (SUCCEEDED(hr))
+	IMMDeviceCollection* AudioDeviceController::getpDeviceCollection()
 	{
-		std::wstring result (prop.pwszVal);
-		PropVariantClear(&prop);
-		return result;
+		if (pDeviceCollection != NULL)
+		{
+			return pDeviceCollection;
+		} else {
+			throw Exception("pDeviceCollection was NULL");
+		}
 	}
-	else
+
+	AudioDeviceMapPtr AudioDeviceController::getpDeviceMap()
 	{
-		return std::wstring (L"");
+		if (pDeviceMap != NULL)
+		{
+			return pDeviceMap;
+		} else {
+			throw Exception("pDeviceMap was NULL");
+		}
 	}
-}
 
-HRESULT SetDefaultAudioPlaybackDevice(LPCWSTR devID)
-{	
-	IPolicyConfigVista *pPolicyConfig;
-	ERole reserved = eConsole;
-
-    HRESULT hr = CoCreateInstance(__uuidof(CPolicyConfigVistaClient), 
-		NULL, CLSCTX_ALL, __uuidof(IPolicyConfigVista), (LPVOID *)&pPolicyConfig);
-	if (SUCCEEDED(hr))
+	AudioDevicePtr AudioDeviceController::getpDefaultDevice()
 	{
-		hr = pPolicyConfig->SetDefaultEndpoint(devID, reserved);
-		pPolicyConfig->Release();
+		if (pDefaultDevice != NULL)
+		{
+			return pDefaultDevice;
+		} else {
+			throw Exception("pDefaultDevice was NULL");
+		}
 	}
-	return hr;
-}
 
-void invalidParameterHandler(const wchar_t* expression,
-   const wchar_t* function, 
-   const wchar_t* file, 
-   unsigned int line, 
-   uintptr_t pReserved)
-{
-   wprintf_s(_T("\nError: Invalid format_str.\n"));
-   exit(1);
 }

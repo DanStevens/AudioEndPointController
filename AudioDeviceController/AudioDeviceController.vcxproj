@@ -90,10 +90,17 @@
     <None Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AudioDevice.h" />
+    <ClInclude Include="AudioDeviceController.h" />
+    <ClInclude Include="Exception.h" />
     <ClInclude Include="PolicyConfig.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AudioDevice.cpp" />
     <ClCompile Include="AudioDeviceController.cpp" />
+    <ClCompile Include="HResultFailException.h" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="mainold.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
