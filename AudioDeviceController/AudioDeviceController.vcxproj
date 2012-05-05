@@ -92,12 +92,14 @@
   <ItemGroup>
     <ClInclude Include="AudioDevice.h" />
     <ClInclude Include="AudioDeviceController.h" />
+    <ClInclude Include="CommandLineUI.h" />
     <ClInclude Include="Exception.h" />
     <ClInclude Include="PolicyConfig.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AudioDevice.cpp" />
     <ClCompile Include="AudioDeviceController.cpp" />
+    <ClCompile Include="CommandLineUI.cpp" />
     <ClCompile Include="HResultFailException.h" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mainold.cpp" />
