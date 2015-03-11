@@ -5,6 +5,7 @@
 #include <tchar.h>
 #include <string>
 #include <iostream>
+#include <locale>
 #include "windows.h"
 #include "Mmdeviceapi.h"
 #include "PolicyConfig.h"
@@ -40,6 +41,12 @@ void invalidParameterHandler(const wchar_t* expression, const wchar_t* function,
 int _tmain(int argc, LPCWSTR argv[])
 {
 	TGlobalState state;
+
+	// Set the locale to system's locale
+	if (setlocale(LC_CTYPE, "") == NULL) {
+		wprintf_s(_T("Cannot set the locale."));
+		exit(1);
+	}
 
 	// Process command line arguments
 	state.option = 0; // 0 indicates list devices.
