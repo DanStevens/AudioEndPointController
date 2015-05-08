@@ -1,3 +1,7 @@
+This is a fork of [DanStevens/AudioEndPointController](https://github.com/DanStevens/AudioEndPointController),
+which lets you change the default end-point by supplying the [friendly name](https://msdn.microsoft.com/en-us/library/windows/hardware/ff536394(v=vs.85).aspx)
+of the device, since the relative "device index" tends to change when devices are attached/detached.
+
 AudioEndPointController
 =======================
 
@@ -12,7 +16,7 @@ A Windows command-line program for listing audio end-points and setting the defa
 												   devices that are enabled.
 	  EndPointController.exe device_index          Sets the default playback device
 												   with the given index.
-	  EndPointController.exe -n friendly_name	   Sets the default playback device
+	  EndPointController.exe -n friendly_name	   Sets the default playvack device
 												   with the given friendly name.
 
 	OPTIONS
