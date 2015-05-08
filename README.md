@@ -12,6 +12,8 @@ A Windows command-line program for listing audio end-points and setting the defa
 												   devices that are enabled.
 	  EndPointController.exe device_index          Sets the default playback device
 												   with the given index.
+	  EndPointController.exe -n friendly_name	   Sets the default playback device
+												   with the given friendly name.
 
 	OPTIONS
 	  -a             Display all devices, rather than just active devices.
