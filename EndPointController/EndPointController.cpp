@@ -15,10 +15,19 @@
 // Index, Device Friendly Name
 #define DEVICE_OUTPUT_FORMAT "Audio Device %d: %ws"
 
+enum OPTION
+{
+	OPTION_LIST_DEVICES,
+	OPTION_SET_BY_INDEX,
+	OPTION_SET_BY_FRIENDLY_NAME
+};
+
 typedef struct TGlobalState
 {
 	HRESULT hr;
 	int option;
+	int indexFilter;
+	std::wstring nameFilter;
 	IMMDeviceEnumerator *pEnum;
 	IMMDeviceCollection *pDevices;
 	LPWSTR strDefaultDeviceID;
@@ -42,13 +51,14 @@ int _tmain(int argc, LPCWSTR argv[])
 	TGlobalState state;
 
 	// Process command line arguments
-	state.option = 0; // 0 indicates list devices.
+	state.option = OPTION_LIST_DEVICES;
 	state.strDefaultDeviceID = '\0';
 	state.pDeviceFormatStr = _T(DEVICE_OUTPUT_FORMAT);
 	state.deviceStateFilter = DEVICE_STATE_ACTIVE;
 
 	for (int i = 1; i < argc; i++) 
 	{
+		LPCWSTR arg = argv[i];
 		if (wcscmp(argv[i], _T("--help")) == 0)
 		{
 			wprintf_s(_T("Lists active audio end-point playback devices or sets default audio end-point\n"));
@@ -58,6 +68,8 @@ int _tmain(int argc, LPCWSTR argv[])
 			wprintf_s(_T("                                               devices that are enabled.\n"));
 			wprintf_s(_T("  EndPointController.exe device_index          Sets the default playvack device\n"));
 			wprintf_s(_T("                                               with the given index.\n"));
+			wprintf_s(_T("  EndPointController.exe -n friendly_name      Sets the default playvack device\n"));
+			wprintf_s(_T("                                               with the given friendly name.\n"));
 			wprintf_s(_T("\n"));
 			wprintf_s(_T("OPTIONS\n"));
 			wprintf_s(_T("  -a             Display all devices, rather than just active devices.\n"));
@@ -69,7 +81,7 @@ int _tmain(int argc, LPCWSTR argv[])
 			wprintf_s(_T("                   - Device index (int)\n"));
 			wprintf_s(_T("                   - Device friendly name (wstring)\n"));
 			wprintf_s(_T("                   - Device state (int)\n"));
-			wprintf_s(_T("				     - Device default? (1 for true 0 for false as int)\n"));
+			wprintf_s(_T("                   - Device default? (1 for true 0 for false as int)\n"));
 			wprintf_s(_T("                   - Device description (wstring)\n"));
 			wprintf_s(_T("                   - Device interface friendly name (wstring)\n"));
 			wprintf_s(_T("                   - Device ID (wstring)\n"));
@@ -96,9 +108,38 @@ int _tmain(int argc, LPCWSTR argv[])
 				exit(1);
 			}
 		}
+		else if (wcscmp(argv[i], _T("-n")) == 0)
+		{
+			if ((argc - i) >= 2) {
+				state.option = OPTION_SET_BY_FRIENDLY_NAME;
+				state.nameFilter = argv[++i];
+				while ((argc - i) >= 2)
+				{
+					state.nameFilter += L" " + std::wstring(argv[++i]);
+				}
+				if (state.nameFilter[0] == L'"')
+				{
+					state.nameFilter.erase(0);
+				}
+				if (state.nameFilter[state.nameFilter.length() - 1] == L'"')
+				{
+					state.nameFilter.erase(state.nameFilter.length() - 1);
+				}
+
+				break;
+			} else
+			{
+				wprintf_s(_T("Missing name string"));
+				exit(1);
+			}
+		}
 	}
 	
-	if (argc == 2) state.option = _wtoi(argv[1]);
+	if (argc == 2)
+	{
+		state.option = OPTION_SET_BY_INDEX;
+		state.indexFilter = _wtoi(argv[1]);
+	}
 
 	state.hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (SUCCEEDED(state.hr))
@@ -138,7 +179,7 @@ void enumerateOutputDevices(TGlobalState* state)
 	state->pDevices->GetCount(&count);
 
 	// If option is less than 1, list devices
-	if (state->option < 1) 
+	if (state->option == OPTION_LIST_DEVICES) 
 	{
 
 		// Get default device
@@ -163,24 +204,56 @@ void enumerateOutputDevices(TGlobalState* state)
 		}
 	}
 	// If option corresponds with the index of an audio device, set it to default
-	else if (state->option <= (int)count)
+	else if (state->option == OPTION_SET_BY_INDEX)
 	{
-		state->hr = state->pDevices->Item(state->option - 1, &state->pCurrentDevice);
-		if (SUCCEEDED(state->hr))
+		if (state->indexFilter <= (int)count)
 		{
-			LPWSTR strID = NULL;
-			state->hr = state->pCurrentDevice->GetId(&strID);
+			state->hr = state->pDevices->Item(state->indexFilter - 1, &state->pCurrentDevice);
 			if (SUCCEEDED(state->hr))
 			{
-				state->hr = SetDefaultAudioPlaybackDevice(strID);
+				LPWSTR strID = NULL;
+				state->hr = state->pCurrentDevice->GetId(&strID);
+				if (SUCCEEDED(state->hr))
+				{
+					state->hr = SetDefaultAudioPlaybackDevice(strID);
+				}
+				state->pCurrentDevice->Release();
 			}
-			state->pCurrentDevice->Release();
+		}
+		// Otherwise inform user than option doesn't correspond with a device
+		else
+		{
+			wprintf_s(_T("Error: No audio end-point device with the index '%d'.\n"), state->indexFilter);
 		}
 	}
-	// Otherwise inform user than option doesn't correspond with a device
-	else
+	else if (state->option == OPTION_SET_BY_FRIENDLY_NAME)
 	{
-		wprintf_s(_T("Error: No audio end-point device with the index '%d'.\n"), state->option);
+		// Iterate all devices
+		for (int i = 1; i <= (int)count; i++)
+		{
+			state->hr = state->pDevices->Item(i - 1, &state->pCurrentDevice);
+			if (SUCCEEDED(state->hr))
+			{
+				LPWSTR strID = NULL;
+				state->hr = state->pCurrentDevice->GetId(&strID);
+				if (SUCCEEDED(state->hr))
+				{
+					IPropertyStore *pStore;
+					state->hr = state->pCurrentDevice->OpenPropertyStore(STGM_READ, &pStore);
+					if (SUCCEEDED(state->hr))
+					{
+						std::wstring friendlyName = getDeviceProperty(pStore, PKEY_Device_FriendlyName);
+						if (state->nameFilter == friendlyName)
+						{
+							state->hr = SetDefaultAudioPlaybackDevice(strID);
+							state->pCurrentDevice->Release();
+							break;
+						}
+					}
+				}
+				state->pCurrentDevice->Release();
+			}
+		}
 	}
 	
 	state->pDevices->Release();
