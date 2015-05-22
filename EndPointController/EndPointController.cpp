@@ -226,6 +226,7 @@ HRESULT printDeviceInfo(IMMDevice* pDevice, int index, LPCWSTR outFormat, LPWSTR
 				strID
 			);
 			wprintf_s(_T("\n"));
+			fflush(stdout);
 		}
 
 		pStore->Release();
