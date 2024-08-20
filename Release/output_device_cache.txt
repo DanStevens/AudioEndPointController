@@ -1,0 +1,2 @@
+SoundCore Q30 (Soundcore Life Q30)|{0.0.0.00000000}.{93b40152-308b-471a-9149-3f9cc7da0aed}
+Night-Speakers (Logitech Z337)|{0.0.0.00000000}.{977d689d-c5ab-41a2-91fa-46ca84bfc6dd}

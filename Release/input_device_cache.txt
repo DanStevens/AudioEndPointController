@@ -1,0 +1,2 @@
+SoundCore Q30 (Soundcore Life Q30)|{0.0.1.00000000}.{5e8b6929-52a8-470a-9b27-c025c2450d3b}
+Razer Mini (Razer Seiren Mini)|{0.0.1.00000000}.{e6e69576-f5f5-4c5f-aa36-7c54c763df4a}

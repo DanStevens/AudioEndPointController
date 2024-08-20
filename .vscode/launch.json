@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch EndPointController",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/Debug/EndPointController.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build EndPointController",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}

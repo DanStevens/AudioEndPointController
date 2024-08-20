@@ -3,3 +3,6 @@ EndPointController/Debug
 EndPointController/Release
 ipch
 *.sdf
+.vs/
+Release/output_device_cache.txt
+Release/input_device_cache.txt
